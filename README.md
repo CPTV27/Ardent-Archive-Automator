@@ -1,11 +1,37 @@
-<div align="center">
+# Ardent Archive Automator - Setup Guide
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+## Step 1: Initialization Commands
 
-  <h1>Built with AI Studio</h2>
+Since you are running this in a web-container or need the reference commands for a local Next.js environment, here are the commands requested in the prompt:
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+```bash
+# 1. Initialize Next.js project
+npx create-next-app@latest ardent-archive --typescript --tailwind --eslint
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+# 2. Navigate to directory
+cd ardent-archive
 
-</div>
+# 3. Install dependencies
+npm install @google/genai prisma @prisma/client clsx tailwind-merge framer-motion lucide-react
+
+# 4. Initialize Prisma
+npx prisma init
+```
+
+## Step 2: Database Setup
+
+Ensure your `.env` file contains your database connection string:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/ardent_archive?schema=public"
+API_KEY="your_gemini_api_key"
+```
+
+To run the migration based on `prisma/schema.prisma`:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+## Current State
+The application shell is built with the Ardent aesthetics (Black/Cream/Gold). Types are exported in `types.ts` to match the schema.
