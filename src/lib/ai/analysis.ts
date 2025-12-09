@@ -1,98 +1,54 @@
-
 import { ai } from "./gemini";
-import { Type } from "@google/genai";
+import { Type, Schema } from "@google/genai";
+import { AssetMetadata } from "../../types";
 
-export interface AnalysisResult {
-  classification: 'COMMERCIAL' | 'DOCUMENT' | 'VISUAL';
-  commercialData?: {
-    artist?: string;
-    title?: string;
-    catalogNumber?: string;
-  };
-  documentData?: {
-    date?: string;
-    client?: string;
-    personnel?: string[];
-  };
-  visualData?: {
-    tags?: string[];
-    description?: string;
-    potentialSessionGuess?: string;
-  };
-}
-
-export async function analyzeUploadedAsset(base64Data: string, mimeType: string): Promise<AnalysisResult> {
+export async function analyzeUploadedAsset({ base64, mimeType }: { base64: string, mimeType: string }): Promise<AssetMetadata> {
   const model = "gemini-2.5-flash";
 
   const prompt = `
-    Analyze this archival asset from a recording studio. 
-    1. Classify it strictly as one of: COMMERCIAL (Vinyl, Tape boxes, Album art), DOCUMENT (Track sheets, Letters, Invoices), or VISUAL (Photos of people, studio equipment, sessions).
-    2. Based on the classification, extract the following details:
-       - If COMMERCIAL: Artist, Title, Catalog Number.
-       - If DOCUMENT: Date (YYYY-MM-DD if possible), Client Name, Personnel/Engineers listed.
-       - If VISUAL: Visual descriptive tags (e.g., 'Studio A', 'Spectra Sonics Console', 'Guitar'), a short description, and a "potentialSessionGuess" (e.g., "Big Star 1972" or "Stax Era late 60s") based on visual cues if possible.
+    Analyze this archival asset.
+    Return a JSON object with the following structure:
+    - assetType: 'Commercial', 'Document', 'Visual', or 'Audio'.
+    - explicitData: Object containing title, artist, catalogNumber (for Commercial) or date, client (for Document).
+    - visualCues: Array of strings describing visual elements.
+    - potentialSessionGuess: String guessing the recording session context.
+    - identifiedPeople: Array of names.
+    - tags: General keywords.
+    - confidenceScore: Number between 0 and 1.
+    - reasoning: Short explanation of classification.
   `;
 
-  const responseSchema = {
+  const responseSchema: Schema = {
     type: Type.OBJECT,
     properties: {
-      classification: {
-        type: Type.STRING,
-        enum: ["COMMERCIAL", "DOCUMENT", "VISUAL"],
-      },
-      commercialData: {
+      assetType: { type: Type.STRING, enum: ['Commercial', 'Document', 'Visual', 'Audio', 'Unknown'] },
+      explicitData: {
         type: Type.OBJECT,
         properties: {
-          artist: { type: Type.STRING, nullable: true },
           title: { type: Type.STRING, nullable: true },
+          artist: { type: Type.STRING, nullable: true },
           catalogNumber: { type: Type.STRING, nullable: true },
-        },
-        nullable: true,
-      },
-      documentData: {
-        type: Type.OBJECT,
-        properties: {
           date: { type: Type.STRING, nullable: true },
           client: { type: Type.STRING, nullable: true },
-          personnel: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING },
-            nullable: true
-          },
         },
-        nullable: true,
+        nullable: true
       },
-      visualData: {
-        type: Type.OBJECT,
-        properties: {
-          tags: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING },
-            nullable: true
-          },
-          description: { type: Type.STRING, nullable: true },
-          potentialSessionGuess: { type: Type.STRING, nullable: true },
-        },
-        nullable: true,
-      },
+      visualCues: { type: Type.ARRAY, items: { type: Type.STRING } },
+      potentialSessionGuess: { type: Type.STRING, nullable: true },
+      identifiedPeople: { type: Type.ARRAY, items: { type: Type.STRING } },
+      tags: { type: Type.ARRAY, items: { type: Type.STRING } },
+      confidenceScore: { type: Type.NUMBER },
+      reasoning: { type: Type.STRING, nullable: true }
     },
-    required: ["classification"],
+    required: ["assetType", "visualCues", "tags", "confidenceScore"]
   };
 
-  try {
-    const response = await ai.models.generateContent({
+  const response = await ai.models.generateContent({
       model: model,
       contents: {
         parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data,
-            },
-          },
-          {
-            text: prompt,
-          },
+          { inlineData: { mimeType: mimeType, data: base64 } },
+          { text: prompt },
         ],
       },
       config: {
@@ -102,12 +58,7 @@ export async function analyzeUploadedAsset(base64Data: string, mimeType: string)
     });
 
     const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    if (!text) throw new Error("No response");
     
-    return JSON.parse(text) as AnalysisResult;
-
-  } catch (error) {
-    console.error("AI Analysis Failed:", error);
-    throw error;
-  }
+    return JSON.parse(text) as AssetMetadata;
 }
