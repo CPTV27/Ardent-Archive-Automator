@@ -30,7 +30,7 @@ export interface Asset {
   url: string;
   type: AssetType;
   metadata: AssetMetadata;
-  status: 'Unprocessed' | 'Analyzed' | 'Archived';
+  status: 'Unprocessed' | 'Analyzed' | 'Archived' | 'VERIFIED';
   sessionId: string | null;
 }
 
@@ -38,5 +38,6 @@ export interface SessionEvent {
   id: string;
   title: string;
   date: string;
+  client?: string | null;
   sourceArtifactId: string;
 }
